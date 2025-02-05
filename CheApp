@@ -1,0 +1,191 @@
+import React, { useState, useEffect } from 'react';
+import {
+  View,
+  Text,
+  TextInput,
+  Button,
+  FlatList,
+  TouchableOpacity,
+  StyleSheet,
+  Alert
+} from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const App = () => {
+  const [organizationName, setOrganizationName] = useState('');
+  const [organizationInfo, setOrganizationInfo] = useState('');
+  const [organizations, setOrganizations] = useState([]);
+  const [reviewText, setReviewText] = useState('');
+
+  useEffect(() => {
+    loadOrganizations();
+  }, []);
+
+  // Load organizations from local storage
+  const loadOrganizations = async () => {
+    try {
+      const storedData = await AsyncStorage.getItem('@organizations');
+      if (storedData) {
+        setOrganizations(JSON.parse(storedData));
+      }
+    } catch (error) {
+      Alert.alert('Ошибка', 'Не удалось загрузить данные');
+    }
+  };
+
+  // Save organizations to local storage
+  const saveOrganizations = async (updatedOrganizations) => {
+    try {
+      await AsyncStorage.setItem('@organizations', JSON.stringify(updatedOrganizations));
+    } catch (error) {
+      Alert.alert('Ошибка', 'Не удалось сохранить данные');
+    }
+  };
+
+  const addOrganization = () => {
+    if (!organizationName || !organizationInfo) {
+      Alert.alert('Ошибка', 'Заполните все поля');
+      return;
+    }
+
+    const newOrganization = {
+      id: Date.now().toString(),
+      name: organizationName,
+      info: organizationInfo,
+      reviews: []
+    };
+
+    const updatedOrganizations = [newOrganization, ...organizations];
+    setOrganizations(updatedOrganizations);
+    saveOrganizations(updatedOrganizations);
+
+    setOrganizationName('');
+    setOrganizationInfo('');
+  };
+
+  const addReview = (organizationId) => {
+    if (!reviewText) {
+      Alert.alert('Ошибка', 'Введите текст отзыва');
+      return;
+    }
+
+    const updatedOrganizations = organizations.map(org => {
+      if (org.id === organizationId) {
+        return {
+          ...org,
+          reviews: [...org.reviews, reviewText]
+        };
+      }
+      return org;
+    });
+
+    setOrganizations(updatedOrganizations);
+    saveOrganizations(updatedOrganizations);
+    setReviewText('');
+  };
+
+  const renderOrganization = ({ item }) => (
+    <View style={styles.organizationCard}>
+      <Text style={styles.organizationName}>{item.name}</Text>
+      <Text>{item.info}</Text>
+
+      <Text style={styles.reviewHeader}>Отзывы:</Text>
+      {item.reviews.length > 0 ? (
+        item.reviews.map((review, index) => (
+          <Text key={index} style={styles.reviewText}>- {review}</Text>
+        ))
+      ) : (
+        <Text style={styles.noReviews}>Нет отзывов</Text>
+      )}
+
+      <TextInput
+        style={styles.input}
+        placeholder="Ваш отзыв"
+        value={reviewText}
+        onChangeText={setReviewText}
+      />
+      <Button title="Добавить отзыв" onPress={() => addReview(item.id)} />
+    </View>
+  );
+
+  return (
+    <View style={styles.container}>
+      <Text style={styles.header}>Добавить организацию</Text>
+      <TextInput
+        style={styles.input}
+        placeholder="Название организации"
+        value={organizationName}
+        onChangeText={setOrganizationName}
+      />
+      <TextInput
+        style={styles.input}
+        placeholder="Информация об организации"
+        value={organizationInfo}
+        onChangeText={setOrganizationInfo}
+      />
+      <Button title="Добавить" onPress={addOrganization} />
+
+      <Text style={styles.listHeader}>Список организаций</Text>
+      <FlatList
+        data={organizations}
+        keyExtractor={(item) => item.id}
+        renderItem={renderOrganization}
+      />
+    </View>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    padding: 16,
+    backgroundColor: '#f8f9fa',
+  },
+  header: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 16,
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: '#ddd',
+    padding: 8,
+    marginBottom: 16,
+    borderRadius: 8,
+  },
+  listHeader: {
+    fontSize: 20,
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  organizationCard: {
+    padding: 16,
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    marginBottom: 8,
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  organizationName: {
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  reviewHeader: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginTop: 8,
+  },
+  reviewText: {
+    fontSize: 14,
+    marginLeft: 8,
+  },
+  noReviews: {
+    fontStyle: 'italic',
+    color: '#666',
+  }
+});
+
+export default App;
